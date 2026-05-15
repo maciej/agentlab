@@ -44,6 +44,20 @@ func TestNewAssistantText(t *testing.T) {
 	}
 }
 
+func TestNewToolResult(t *testing.T) {
+	msg := NewToolResult("search_text", `{"matches":[]}`)
+
+	if msg.Role != RoleTool {
+		t.Fatalf("role = %q, want %q", msg.Role, RoleTool)
+	}
+	if msg.ToolName != "search_text" {
+		t.Fatalf("tool name = %q, want search_text", msg.ToolName)
+	}
+	if got := msg.Text(); got != `{"matches":[]}` {
+		t.Fatalf("Text() = %q, want tool result JSON", got)
+	}
+}
+
 func TestThinkingExcludesFinalText(t *testing.T) {
 	msg := Message{
 		Role: RoleAssistant,

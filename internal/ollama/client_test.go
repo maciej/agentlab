@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"agentlab/internal/agenttool"
 	"agentlab/internal/message"
 )
 
@@ -41,6 +42,16 @@ func TestChatCallsOllamaChatEndpoint(t *testing.T) {
 	}, ChatOptions{
 		ContextWindow: 32768,
 		Think:         ThinkTrue,
+		Tools: []agenttool.FunctionTool{{
+			Type: "function",
+			Function: agenttool.FunctionDefinition{
+				Name:        "search_text",
+				Description: "search text",
+				Parameters: agenttool.Object(map[string]agenttool.Schema{
+					"query": agenttool.String("query"),
+				}, "query"),
+			},
+		}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -64,6 +75,12 @@ func TestChatCallsOllamaChatEndpoint(t *testing.T) {
 	if got.Options.NumCtx != 32768 {
 		t.Fatalf("num_ctx = %d, want 32768", got.Options.NumCtx)
 	}
+	if len(got.Tools) != 1 {
+		t.Fatalf("tool count = %d, want 1", len(got.Tools))
+	}
+	if got.Tools[0].Function.Name != "search_text" {
+		t.Fatalf("tool name = %q, want search_text", got.Tools[0].Function.Name)
+	}
 	if response.Role != message.RoleAssistant {
 		t.Fatalf("response role = %q, want %q", response.Role, message.RoleAssistant)
 	}
@@ -84,6 +101,72 @@ func TestChatCallsOllamaChatEndpoint(t *testing.T) {
 	}
 	if response.Usage.OutputTokens != 7 {
 		t.Fatalf("output tokens = %d, want 7", response.Usage.OutputTokens)
+	}
+}
+
+func TestChatPreservesToolCallsAndToolMessages(t *testing.T) {
+	var got chatRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatal(err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"message": {
+				"role": "assistant",
+				"tool_calls": [
+					{
+						"type": "function",
+						"function": {
+							"index": 0,
+							"name": "search_text",
+							"arguments": {"query": "aurora"}
+						}
+					}
+				]
+			},
+			"done_reason": "stop"
+		}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	response, err := client.Chat(context.Background(), "gemma", []message.Message{
+		{
+			Role: message.RoleAssistant,
+			ToolCalls: []message.ToolCall{{
+				Type: "function",
+				Function: message.FunctionCall{
+					Index:     0,
+					Name:      "search_text",
+					Arguments: json.RawMessage(`{"query":"aurora"}`),
+				},
+			}},
+		},
+		message.NewToolResult("search_text", `{"matches":[]}`),
+	}, ChatOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got.Messages) != 2 {
+		t.Fatalf("message count = %d, want 2", len(got.Messages))
+	}
+	if len(got.Messages[0].ToolCalls) != 1 {
+		t.Fatalf("request tool calls = %d, want 1", len(got.Messages[0].ToolCalls))
+	}
+	if got.Messages[1].Role != "tool" || got.Messages[1].ToolName != "search_text" {
+		t.Fatalf("tool message = %#v", got.Messages[1])
+	}
+	if len(response.ToolCalls) != 1 {
+		t.Fatalf("response tool calls = %d, want 1", len(response.ToolCalls))
+	}
+	if response.ToolCalls[0].Function.Name != "search_text" {
+		t.Fatalf("response tool name = %q, want search_text", response.ToolCalls[0].Function.Name)
+	}
+	if string(response.ToolCalls[0].Function.Arguments) != `{"query": "aurora"}` {
+		t.Fatalf("arguments = %s", response.ToolCalls[0].Function.Arguments)
 	}
 }
 

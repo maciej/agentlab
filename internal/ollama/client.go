@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"agentlab/internal/agenttool"
 	"agentlab/internal/message"
 )
 
@@ -26,6 +27,7 @@ const (
 type ChatOptions struct {
 	ContextWindow int
 	Think         ThinkMode
+	Tools         []agenttool.FunctionTool
 }
 
 type Client struct {
@@ -61,6 +63,7 @@ func (c Client) Chat(
 		Messages: toChatMessages(messages),
 		Stream:   false,
 		Think:    options.Think,
+		Tools:    options.Tools,
 	}
 	if reqBody.Think == ThinkDisabled {
 		reqBody.Think = ThinkFalse
@@ -105,7 +108,10 @@ func (c Client) Chat(
 	if timestamp.IsZero() {
 		timestamp = time.Now().UTC()
 	}
-	content := []message.ContentBlock{message.NewTextBlock(strings.TrimSpace(out.Message.Content))}
+	content := make([]message.ContentBlock, 0, 2)
+	if text := strings.TrimSpace(out.Message.Content); text != "" {
+		content = append(content, message.NewTextBlock(text))
+	}
 	if thinking := strings.TrimSpace(out.Message.Thinking); thinking != "" {
 		content = append(content, message.NewThinkingBlock(thinking))
 	}
@@ -117,6 +123,7 @@ func (c Client) Chat(
 		Provider:   "ollama",
 		Model:      model,
 		StopReason: stopReason,
+		ToolCalls:  out.Message.ToolCalls,
 		Usage: message.TokenUsage{
 			InputTokens:  out.PromptEvalCount,
 			OutputTokens: out.EvalCount,
@@ -128,13 +135,16 @@ func toChatMessages(messages []message.Message) []chatMessage {
 	out := make([]chatMessage, 0, len(messages))
 	for _, msg := range messages {
 		role := string(msg.Role)
-		if role == "" || msg.Text() == "" {
+		text := msg.Text()
+		if role == "" || (text == "" && len(msg.ToolCalls) == 0) {
 			continue
 		}
 		out = append(out, chatMessage{
-			Role:     role,
-			Content:  msg.Text(),
-			Thinking: msg.Thinking(),
+			Role:      role,
+			Content:   text,
+			Thinking:  msg.Thinking(),
+			ToolName:  msg.ToolName,
+			ToolCalls: msg.ToolCalls,
 		})
 	}
 	return out
@@ -173,17 +183,20 @@ func (m *ThinkMode) UnmarshalJSON(data []byte) error {
 }
 
 type chatRequest struct {
-	Model    string         `json:"model"`
-	Messages []chatMessage  `json:"messages"`
-	Stream   bool           `json:"stream"`
-	Think    ThinkMode      `json:"think"`
-	Options  requestOptions `json:"options,omitempty"`
+	Model    string                   `json:"model"`
+	Messages []chatMessage            `json:"messages"`
+	Stream   bool                     `json:"stream"`
+	Think    ThinkMode                `json:"think"`
+	Options  requestOptions           `json:"options,omitempty"`
+	Tools    []agenttool.FunctionTool `json:"tools,omitempty"`
 }
 
 type chatMessage struct {
-	Role     string `json:"role"`
-	Content  string `json:"content"`
-	Thinking string `json:"thinking,omitempty"`
+	Role      string             `json:"role"`
+	Content   string             `json:"content,omitempty"`
+	Thinking  string             `json:"thinking,omitempty"`
+	ToolName  string             `json:"tool_name,omitempty"`
+	ToolCalls []message.ToolCall `json:"tool_calls,omitempty"`
 }
 
 type chatResponse struct {

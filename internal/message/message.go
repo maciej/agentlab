@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
 )
@@ -11,6 +12,7 @@ const (
 	RoleSystem    Role = "system"
 	RoleUser      Role = "user"
 	RoleAssistant Role = "assistant"
+	RoleTool      Role = "tool"
 )
 
 type ContentType string
@@ -33,11 +35,24 @@ type Message struct {
 	Model      string         `json:"model,omitempty"`
 	StopReason string         `json:"stop_reason,omitempty"`
 	Usage      TokenUsage     `json:"usage,omitempty"`
+	ToolName   string         `json:"tool_name,omitempty"`
+	ToolCalls  []ToolCall     `json:"tool_calls,omitempty"`
 }
 
 type TokenUsage struct {
 	InputTokens  int `json:"input_tokens,omitempty"`
 	OutputTokens int `json:"output_tokens,omitempty"`
+}
+
+type ToolCall struct {
+	Type     string       `json:"type"`
+	Function FunctionCall `json:"function"`
+}
+
+type FunctionCall struct {
+	Index     int             `json:"index,omitempty"`
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments,omitempty"`
 }
 
 func NewUserText(text string) Message {
@@ -64,6 +79,15 @@ func NewAssistantText(text, provider, model string) Message {
 		Provider:   provider,
 		Model:      model,
 		StopReason: "stop",
+	}
+}
+
+func NewToolResult(toolName, text string) Message {
+	return Message{
+		Role:      RoleTool,
+		Content:   []ContentBlock{NewTextBlock(text)},
+		Timestamp: time.Now().UTC(),
+		ToolName:  toolName,
 	}
 }
 

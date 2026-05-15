@@ -15,10 +15,10 @@ go run ./cmd/agentlab
 Pass a custom prompt with `--prompt` or as positional text:
 
 ```sh
-go run ./cmd/agentlab --prompt "Use search_text to find aurora in the sandbox, then tell me the reported status."
+go run ./cmd/agentlab --prompt "Search the sandbox for aurora, then tell me the reported status."
 ```
 
-By default, AgentLab snapshots `testdata/smoke-sandbox` and exposes these read-only tools to the model:
+By default, AgentLab snapshots `testdata/smoke-sandbox` and exposes these read-only Ollama tools to the model:
 
 - `list_files`
 - `read_file`
@@ -46,7 +46,7 @@ provider: ollama
 ollama:
   endpoint: http://100.69.186.98:11434
   model: gemma4:26b
-  context_window: 32768
+  context_window: 98304
   # Optional. Use true/false for most thinking models, or low/medium/high for models that support levels.
   think: true
 ```

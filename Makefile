@@ -9,7 +9,7 @@ lint:
 	$(GOLANGCI_LINT) run
 
 smoke:
-	go run ./cmd/agentlab --prompt 'Respond only with this JSON tool call: {"tool":"search_text","arguments":{"query":"aurora","path":".","case_sensitive":false,"regex":false}}'
+	go run ./cmd/agentlab --prompt 'Search the sandbox for aurora, then tell me the reported status.'
 
 test:
 	go test ./...
