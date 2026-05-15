@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -24,6 +25,7 @@ type OllamaConfig struct {
 	Endpoint      string `mapstructure:"endpoint"       yaml:"endpoint"`
 	Model         string `mapstructure:"model"          yaml:"model"`
 	ContextWindow int    `mapstructure:"context_window" yaml:"context_window"`
+	Think         string `mapstructure:"think"          yaml:"think"`
 }
 
 func DefaultPath() (string, error) {
@@ -68,6 +70,7 @@ func Load(path string) (Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %s: %w", path, err)
 	}
+	cfg.normalize()
 	if err := cfg.Validate(); err != nil {
 		return Config{}, fmt.Errorf("validate config %s: %w", path, err)
 	}
@@ -91,5 +94,25 @@ func (c Config) Validate() error {
 	if c.Ollama.ContextWindow < 0 {
 		return fmt.Errorf("ollama.context_window must not be negative")
 	}
+	switch c.Ollama.Think {
+	case "", "false", "true", "low", "medium", "high":
+	default:
+		return fmt.Errorf("ollama.think must be one of false, true, low, medium, or high")
+	}
 	return nil
+}
+
+func (c *Config) normalize() {
+	c.Ollama.Think = normalizeOllamaThink(c.Ollama.Think)
+}
+
+func normalizeOllamaThink(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1":
+		return "true"
+	case "0":
+		return "false"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
 }

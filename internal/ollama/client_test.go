@@ -23,8 +23,14 @@ func TestChatCallsOllamaChatEndpoint(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{
 			"created_at": "2026-05-14T20:30:00Z",
-			"message": {"role": "assistant", "content": " hello from ollama "},
-			"done_reason": "stop"
+			"message": {
+				"role": "assistant",
+				"content": " hello from ollama ",
+				"thinking": " considered greeting options "
+			},
+			"done_reason": "stop",
+			"prompt_eval_count": 11,
+			"eval_count": 7
 		}`))
 	}))
 	defer server.Close()
@@ -32,7 +38,10 @@ func TestChatCallsOllamaChatEndpoint(t *testing.T) {
 	client := NewClient(server.URL)
 	response, err := client.Chat(context.Background(), "gemma", []message.Message{
 		message.NewUserText("hello"),
-	}, 32768)
+	}, ChatOptions{
+		ContextWindow: 32768,
+		Think:         ThinkTrue,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,8 +58,8 @@ func TestChatCallsOllamaChatEndpoint(t *testing.T) {
 	if got.Messages[0].Content != "hello" {
 		t.Fatalf("content = %q, want %q", got.Messages[0].Content, "hello")
 	}
-	if got.Think == nil || *got.Think {
-		t.Fatal("think should be false")
+	if got.Think != ThinkTrue {
+		t.Fatalf("think = %q, want %q", got.Think, ThinkTrue)
 	}
 	if got.Options.NumCtx != 32768 {
 		t.Fatalf("num_ctx = %d, want 32768", got.Options.NumCtx)
@@ -61,10 +70,46 @@ func TestChatCallsOllamaChatEndpoint(t *testing.T) {
 	if response.Text() != "hello from ollama" {
 		t.Fatalf("response text = %q, want %q", response.Text(), "hello from ollama")
 	}
+	if response.Thinking() != "considered greeting options" {
+		t.Fatalf("response thinking = %q, want %q", response.Thinking(), "considered greeting options")
+	}
 	if response.Provider != "ollama" {
 		t.Fatalf("response provider = %q, want %q", response.Provider, "ollama")
 	}
 	if response.Model != "gemma" {
 		t.Fatalf("response model = %q, want %q", response.Model, "gemma")
+	}
+	if response.Usage.InputTokens != 11 {
+		t.Fatalf("input tokens = %d, want 11", response.Usage.InputTokens)
+	}
+	if response.Usage.OutputTokens != 7 {
+		t.Fatalf("output tokens = %d, want 7", response.Usage.OutputTokens)
+	}
+}
+
+func TestChatDefaultsThinkToFalse(t *testing.T) {
+	var got chatRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatal(err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"message": {"role": "assistant", "content": "ok"},
+			"done_reason": "stop"
+		}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	if _, err := client.Chat(context.Background(), "gemma", []message.Message{
+		message.NewUserText("hello"),
+	}, ChatOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if got.Think != ThinkFalse {
+		t.Fatalf("think = %q, want %q", got.Think, ThinkFalse)
 	}
 }

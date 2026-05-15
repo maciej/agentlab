@@ -29,4 +29,6 @@ ollama:
   endpoint: http://100.69.186.98:11434
   model: gemma4:26b
   context_window: 32768
+  # Optional. Use true/false for most thinking models, or low/medium/high for models that support levels.
+  think: true
 ```

@@ -15,6 +15,7 @@ ollama:
   endpoint: http://localhost:11434
   model: gemma4:26b
   context_window: 32768
+  think: true
 `)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -36,6 +37,9 @@ ollama:
 	}
 	if cfg.Ollama.ContextWindow != 32768 {
 		t.Fatalf("Ollama.ContextWindow = %d, want 32768", cfg.Ollama.ContextWindow)
+	}
+	if cfg.Ollama.Think != "true" {
+		t.Fatalf("Ollama.Think = %q, want true", cfg.Ollama.Think)
 	}
 }
 

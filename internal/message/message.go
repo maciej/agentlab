@@ -15,7 +15,8 @@ const (
 type ContentType string
 
 const (
-	ContentTypeText ContentType = "text"
+	ContentTypeText     ContentType = "text"
+	ContentTypeThinking ContentType = "thinking"
 )
 
 type ContentBlock struct {
@@ -30,6 +31,12 @@ type Message struct {
 	Provider   string         `json:"provider,omitempty"`
 	Model      string         `json:"model,omitempty"`
 	StopReason string         `json:"stop_reason,omitempty"`
+	Usage      TokenUsage     `json:"usage,omitempty"`
+}
+
+type TokenUsage struct {
+	InputTokens  int `json:"input_tokens,omitempty"`
+	OutputTokens int `json:"output_tokens,omitempty"`
 }
 
 func NewUserText(text string) Message {
@@ -55,10 +62,24 @@ func NewTextBlock(text string) ContentBlock {
 	return ContentBlock{Type: ContentTypeText, Text: text}
 }
 
+func NewThinkingBlock(text string) ContentBlock {
+	return ContentBlock{Type: ContentTypeThinking, Text: text}
+}
+
 func (m Message) Text() string {
 	parts := make([]string, 0, len(m.Content))
 	for _, block := range m.Content {
 		if block.Type == ContentTypeText && block.Text != "" {
+			parts = append(parts, block.Text)
+		}
+	}
+	return strings.TrimSpace(strings.Join(parts, "\n"))
+}
+
+func (m Message) Thinking() string {
+	parts := make([]string, 0, len(m.Content))
+	for _, block := range m.Content {
+		if block.Type == ContentTypeThinking && block.Text != "" {
 			parts = append(parts, block.Text)
 		}
 	}

@@ -63,7 +63,10 @@ func run(cfgPath string) error {
 	}
 
 	client := ollama.NewClient(cfg.Ollama.Endpoint)
-	response, err := client.Chat(ctx, cfg.Ollama.Model, sessionContext.Messages, cfg.Ollama.ContextWindow)
+	response, err := client.Chat(ctx, cfg.Ollama.Model, sessionContext.Messages, ollama.ChatOptions{
+		ContextWindow: cfg.Ollama.ContextWindow,
+		Think:         ollama.ThinkMode(cfg.Ollama.Think),
+	})
 	if err != nil {
 		return err
 	}
@@ -76,9 +79,15 @@ func run(cfgPath string) error {
 	if cfg.Ollama.ContextWindow > 0 {
 		fmt.Printf("Context window: %d\n", cfg.Ollama.ContextWindow)
 	}
+	if cfg.Ollama.Think != "" && cfg.Ollama.Think != "false" {
+		fmt.Printf("Thinking: %s\n", cfg.Ollama.Think)
+	}
 	fmt.Printf("Session: %s\n", s.Metadata().ID)
 	fmt.Printf("Session entries: %d\n", len(s.Entries()))
 	fmt.Printf("Prompt: %s\n\n", helloPrompt)
+	if thinking := response.Thinking(); thinking != "" {
+		fmt.Printf("Thinking output:\n%s\n\n", thinking)
+	}
 	fmt.Println(response.Text())
 
 	return nil

@@ -32,3 +32,20 @@ func TestNewAssistantText(t *testing.T) {
 		t.Fatalf("stop reason = %q, want %q", msg.StopReason, "stop")
 	}
 }
+
+func TestThinkingExcludesFinalText(t *testing.T) {
+	msg := Message{
+		Role: RoleAssistant,
+		Content: []ContentBlock{
+			NewThinkingBlock("consider options"),
+			NewTextBlock("final answer"),
+		},
+	}
+
+	if got := msg.Text(); got != "final answer" {
+		t.Fatalf("Text() = %q, want %q", got, "final answer")
+	}
+	if got := msg.Thinking(); got != "consider options" {
+		t.Fatalf("Thinking() = %q, want %q", got, "consider options")
+	}
+}
