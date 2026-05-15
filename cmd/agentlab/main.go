@@ -23,6 +23,7 @@ import (
 const (
 	helloPrompt        = "Say hello from AgentLab in one short sentence."
 	defaultSandboxPath = "testdata/smoke-sandbox"
+	baseSystemPrompt   = "You are AgentLab, a concise agent harness. Answer the user directly. When tools are available, use them to inspect the sandbox before making claims about sandbox contents."
 )
 
 type runOptions struct {
@@ -31,6 +32,10 @@ type runOptions struct {
 	Prompt       string
 	SandboxPath  string
 	MaxToolTurns int
+}
+
+type renderSystemPromptOptions struct {
+	SandboxPath string
 }
 
 func main() {
@@ -44,13 +49,11 @@ func newRootCommand() *cobra.Command {
 	var options runOptions
 
 	cmd := &cobra.Command{
-		Use:   "agentlab",
+		Use:   "agentlab [prompt]",
 		Short: "Run the AgentLab agent harness",
-		Args:  cobra.ArbitraryArgs,
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if options.Prompt == "" && len(args) > 0 {
-				options.Prompt = strings.Join(args, " ")
-			}
+			options.Prompt = promptFromArgs(options.Prompt, args)
 			return run(options)
 		},
 	}
@@ -61,6 +64,34 @@ func newRootCommand() *cobra.Command {
 		StringVar(&options.SandboxPath, "sandbox", defaultSandboxPath, "directory to snapshot for read-only tools")
 	cmd.Flags().IntVar(&options.MaxToolTurns, "max-tool-turns", 3, "maximum read-only tool calls before stopping")
 
+	cmd.AddCommand(newDebugCommand())
+
+	return cmd
+}
+
+func newDebugCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "debug",
+		Short: "Debug AgentLab internals",
+	}
+	cmd.AddCommand(newRenderSystemPromptCommand())
+	return cmd
+}
+
+func newRenderSystemPromptCommand() *cobra.Command {
+	options := renderSystemPromptOptions{
+		SandboxPath: defaultSandboxPath,
+	}
+	cmd := &cobra.Command{
+		Use:   "render-system-prompt",
+		Short: "Render the system prompt sent to the model",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return renderSystemPromptCommand(options)
+		},
+	}
+	cmd.Flags().
+		StringVar(&options.SandboxPath, "sandbox", defaultSandboxPath, "directory whose tools are included in the prompt")
 	return cmd
 }
 
@@ -107,6 +138,13 @@ func run(options runOptions) error {
 		}
 	}
 
+	systemPrompt, err := renderSystemPrompt(toolRegistry)
+	if err != nil {
+		return err
+	}
+	if _, err := s.AppendMessage(message.NewSystemText(systemPrompt)); err != nil {
+		return err
+	}
 	if _, err := s.AppendMessage(message.NewUserText(options.Prompt)); err != nil {
 		return err
 	}
@@ -193,6 +231,50 @@ func run(options runOptions) error {
 	fmt.Println(response.Text())
 
 	return nil
+}
+
+func renderSystemPromptCommand(options renderSystemPromptOptions) error {
+	toolRegistry, err := registryForPromptRender(options.SandboxPath)
+	if err != nil {
+		return err
+	}
+	prompt, err := renderSystemPrompt(toolRegistry)
+	if err != nil {
+		return err
+	}
+	fmt.Println(prompt)
+	return nil
+}
+
+func promptFromArgs(flagPrompt string, args []string) string {
+	if flagPrompt != "" || len(args) == 0 {
+		return flagPrompt
+	}
+	return args[0]
+}
+
+func registryForPromptRender(sandboxPath string) (*agenttool.Registry, error) {
+	if sandboxPath == "" {
+		return nil, nil
+	}
+	return agenttool.NewRegistry(agenttool.SandboxDefinitions(nil))
+}
+
+func renderSystemPrompt(toolRegistry *agenttool.Registry) (string, error) {
+	var builder strings.Builder
+	builder.WriteString(baseSystemPrompt)
+	builder.WriteString("\n\n")
+	builder.WriteString("Tool definitions:\n")
+	if toolRegistry == nil {
+		builder.WriteString("[]")
+		return builder.String(), nil
+	}
+	data, err := json.MarshalIndent(toolRegistry.FunctionTools(), "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("render tool definitions: %w", err)
+	}
+	builder.Write(data)
+	return builder.String(), nil
 }
 
 func formatToolResultContent(result any) string {
