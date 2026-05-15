@@ -16,6 +16,17 @@ func TestNewUserText(t *testing.T) {
 	}
 }
 
+func TestNewSystemText(t *testing.T) {
+	msg := NewSystemText("tool instructions")
+
+	if msg.Role != RoleSystem {
+		t.Fatalf("role = %q, want %q", msg.Role, RoleSystem)
+	}
+	if got := msg.Text(); got != "tool instructions" {
+		t.Fatalf("Text() = %q, want %q", got, "tool instructions")
+	}
+}
+
 func TestNewAssistantText(t *testing.T) {
 	msg := NewAssistantText("hi", "ollama", "gemma")
 

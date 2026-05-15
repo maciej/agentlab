@@ -12,6 +12,24 @@ AgentLab currently has an Ollama hello-world command backed by a small in-memory
 go run ./cmd/agentlab
 ```
 
+Pass a custom prompt with `--prompt` or as positional text:
+
+```sh
+go run ./cmd/agentlab --prompt "Use search_text to find aurora in the sandbox, then tell me the reported status."
+```
+
+By default, AgentLab snapshots `testdata/smoke-sandbox` and exposes these read-only tools to the model:
+
+- `list_files`
+- `read_file`
+- `search_text`
+
+Run the local tool smoke test against the configured model with:
+
+```sh
+make smoke
+```
+
 The CLI is built with Cobra and accepts `--config` for an explicit YAML config file:
 
 ```sh

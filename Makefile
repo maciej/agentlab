@@ -1,12 +1,15 @@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.1
 
-.PHONY: fmt lint test
+.PHONY: fmt lint smoke test
 
 fmt:
 	$(GOLANGCI_LINT) fmt
 
 lint:
 	$(GOLANGCI_LINT) run
+
+smoke:
+	go run ./cmd/agentlab --prompt 'Respond only with this JSON tool call: {"tool":"search_text","arguments":{"query":"aurora","path":".","case_sensitive":false,"regex":false}}'
 
 test:
 	go test ./...

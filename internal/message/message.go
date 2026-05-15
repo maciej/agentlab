@@ -8,6 +8,7 @@ import (
 type Role string
 
 const (
+	RoleSystem    Role = "system"
 	RoleUser      Role = "user"
 	RoleAssistant Role = "assistant"
 )
@@ -42,6 +43,14 @@ type TokenUsage struct {
 func NewUserText(text string) Message {
 	return Message{
 		Role:      RoleUser,
+		Content:   []ContentBlock{NewTextBlock(text)},
+		Timestamp: time.Now().UTC(),
+	}
+}
+
+func NewSystemText(text string) Message {
+	return Message{
+		Role:      RoleSystem,
 		Content:   []ContentBlock{NewTextBlock(text)},
 		Timestamp: time.Now().UTC(),
 	}
