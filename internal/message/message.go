@@ -36,6 +36,7 @@ type Message struct {
 	StopReason string         `json:"stop_reason,omitempty"`
 	Usage      TokenUsage     `json:"usage,omitempty"`
 	ToolName   string         `json:"tool_name,omitempty"`
+	ToolCallID string         `json:"tool_call_id,omitempty"`
 	ToolCalls  []ToolCall     `json:"tool_calls,omitempty"`
 }
 
@@ -45,6 +46,7 @@ type TokenUsage struct {
 }
 
 type ToolCall struct {
+	ID       string       `json:"id,omitempty"`
 	Type     string       `json:"type"`
 	Function FunctionCall `json:"function"`
 }
@@ -82,12 +84,17 @@ func NewAssistantText(text, provider, model string) Message {
 	}
 }
 
-func NewToolResult(toolName, text string) Message {
+func NewToolResult(toolName, text string, toolCallID ...string) Message {
+	var id string
+	if len(toolCallID) > 0 {
+		id = toolCallID[0]
+	}
 	return Message{
-		Role:      RoleTool,
-		Content:   []ContentBlock{NewTextBlock(text)},
-		Timestamp: time.Now().UTC(),
-		ToolName:  toolName,
+		Role:       RoleTool,
+		Content:    []ContentBlock{NewTextBlock(text)},
+		Timestamp:  time.Now().UTC(),
+		ToolName:   toolName,
+		ToolCallID: id,
 	}
 }
 

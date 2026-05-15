@@ -19,7 +19,11 @@ func TestSandboxRegistryExecutesSearchText(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := registry.Execute(context.Background(), "search_text", json.RawMessage(`{"query":"aurora","path":"."}`))
+	result, err := registry.Execute(
+		context.Background(),
+		"search_text",
+		json.RawMessage(`{"query":"aurora","path":"."}`),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

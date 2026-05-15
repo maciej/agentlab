@@ -11,6 +11,7 @@ import (
 
 	"agentlab/internal/agenttool"
 	"agentlab/internal/message"
+	"agentlab/internal/provider"
 )
 
 type ThinkMode string
@@ -24,26 +25,32 @@ const (
 	ThinkHigh     ThinkMode = "high"
 )
 
-type ChatOptions struct {
-	ContextWindow int
-	Think         ThinkMode
-	Tools         []agenttool.FunctionTool
+type ClientOptions struct {
+	Think ThinkMode
 }
 
 type Client struct {
 	endpoint   string
 	httpClient *http.Client
+	options    ClientOptions
 }
 
+var _ provider.Client = Client{}
+
 func NewClient(endpoint string) Client {
+	return NewClientWithOptions(endpoint, ClientOptions{})
+}
+
+func NewClientWithOptions(endpoint string, options ClientOptions) Client {
 	return Client{
 		endpoint:   strings.TrimRight(endpoint, "/"),
 		httpClient: http.DefaultClient,
+		options:    options,
 	}
 }
 
 func (c Client) Generate(ctx context.Context, model, prompt string, contextWindow int) (string, error) {
-	response, err := c.Chat(ctx, model, []message.Message{message.NewUserText(prompt)}, ChatOptions{
+	response, err := c.Chat(ctx, model, []message.Message{message.NewUserText(prompt)}, provider.ChatOptions{
 		ContextWindow: contextWindow,
 	})
 	if err != nil {
@@ -56,13 +63,13 @@ func (c Client) Chat(
 	ctx context.Context,
 	model string,
 	messages []message.Message,
-	options ChatOptions,
+	options provider.ChatOptions,
 ) (message.Message, error) {
 	reqBody := chatRequest{
 		Model:    model,
 		Messages: toChatMessages(messages),
 		Stream:   false,
-		Think:    options.Think,
+		Think:    c.options.Think,
 		Tools:    options.Tools,
 	}
 	if reqBody.Think == ThinkDisabled {

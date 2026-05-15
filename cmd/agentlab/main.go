@@ -12,18 +12,22 @@ import (
 	"agentlab/internal/agenttool"
 	"agentlab/internal/config"
 	"agentlab/internal/message"
-	"agentlab/internal/ollama"
+	"agentlab/internal/provider"
+	"agentlab/internal/providerfactory"
 	"agentlab/internal/sandboxfs"
 	"agentlab/internal/session"
 
 	"github.com/spf13/cobra"
 )
 
-const helloPrompt = "Say hello from AgentLab in one short sentence."
-const defaultSandboxPath = "testdata/smoke-sandbox"
+const (
+	helloPrompt        = "Say hello from AgentLab in one short sentence."
+	defaultSandboxPath = "testdata/smoke-sandbox"
+)
 
 type runOptions struct {
 	ConfigPath   string
+	ProviderName string
 	Prompt       string
 	SandboxPath  string
 	MaxToolTurns int
@@ -51,8 +55,10 @@ func newRootCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&options.ConfigPath, "config", "", "path to YAML config file")
+	cmd.Flags().StringVar(&options.ProviderName, "provider", "", "provider name from config to use")
 	cmd.Flags().StringVar(&options.Prompt, "prompt", "", "prompt to send to the model")
-	cmd.Flags().StringVar(&options.SandboxPath, "sandbox", defaultSandboxPath, "directory to snapshot for read-only tools")
+	cmd.Flags().
+		StringVar(&options.SandboxPath, "sandbox", defaultSandboxPath, "directory to snapshot for read-only tools")
 	cmd.Flags().IntVar(&options.MaxToolTurns, "max-tool-turns", 3, "maximum read-only tool calls before stopping")
 
 	return cmd
@@ -78,7 +84,12 @@ func run(options runOptions) error {
 	if err != nil {
 		return err
 	}
-	if _, err := s.AppendModelChange(cfg.Provider, cfg.Ollama.Model); err != nil {
+	selectedProvider, err := cfg.ProviderByName(options.ProviderName)
+	if err != nil {
+		return err
+	}
+	model := selectedProvider.Model()
+	if _, err := s.AppendModelChange(selectedProvider.Name, model); err != nil {
 		return err
 	}
 
@@ -100,7 +111,10 @@ func run(options runOptions) error {
 		return err
 	}
 
-	client := ollama.NewClient(cfg.Ollama.Endpoint)
+	client, err := providerfactory.NewClient(selectedProvider)
+	if err != nil {
+		return err
+	}
 	var response message.Message
 	toolCalls := make([]message.ToolCall, 0)
 	for turn := 0; ; turn++ {
@@ -112,9 +126,8 @@ func run(options runOptions) error {
 		if toolRegistry != nil {
 			tools = toolRegistry.FunctionTools()
 		}
-		response, err = client.Chat(ctx, cfg.Ollama.Model, sessionContext.Messages, ollama.ChatOptions{
-			ContextWindow: cfg.Ollama.ContextWindow,
-			Think:         ollama.ThinkMode(cfg.Ollama.Think),
+		response, err = client.Chat(ctx, model, sessionContext.Messages, provider.ChatOptions{
+			ContextWindow: selectedProvider.ContextWindow(),
 			Tools:         tools,
 		})
 		if err != nil {
@@ -144,19 +157,22 @@ func run(options runOptions) error {
 				return err
 			}
 			toolCalls = append(toolCalls, call)
-			if _, err := s.AppendMessage(message.NewToolResult(toolName, formatToolResultContent(result))); err != nil {
+			if _, err := s.AppendMessage(
+				message.NewToolResult(toolName, formatToolResultContent(result), call.ID),
+			); err != nil {
 				return err
 			}
 		}
 	}
 
-	fmt.Printf("Provider: %s\n", cfg.Provider)
-	fmt.Printf("Model: %s\n", cfg.Ollama.Model)
-	if cfg.Ollama.ContextWindow > 0 {
-		fmt.Printf("Context window: %d\n", cfg.Ollama.ContextWindow)
+	fmt.Printf("Provider: %s\n", selectedProvider.Name)
+	fmt.Printf("Provider type: %s\n", selectedProvider.Type)
+	fmt.Printf("Model: %s\n", model)
+	if selectedProvider.ContextWindow() > 0 {
+		fmt.Printf("Context window: %d\n", selectedProvider.ContextWindow())
 	}
-	if cfg.Ollama.Think != "" && cfg.Ollama.Think != "false" {
-		fmt.Printf("Thinking: %s\n", cfg.Ollama.Think)
+	if thinking := selectedProvider.Thinking(); thinking != "" && thinking != "false" {
+		fmt.Printf("Thinking: %s\n", thinking)
 	}
 	fmt.Printf("Session: %s\n", s.Metadata().ID)
 	fmt.Printf("Session entries: %d\n", len(s.Entries()))

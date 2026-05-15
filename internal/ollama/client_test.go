@@ -9,6 +9,7 @@ import (
 
 	"agentlab/internal/agenttool"
 	"agentlab/internal/message"
+	"agentlab/internal/provider"
 )
 
 func TestChatCallsOllamaChatEndpoint(t *testing.T) {
@@ -36,12 +37,11 @@ func TestChatCallsOllamaChatEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClientWithOptions(server.URL, ClientOptions{Think: ThinkTrue})
 	response, err := client.Chat(context.Background(), "gemma", []message.Message{
 		message.NewUserText("hello"),
-	}, ChatOptions{
+	}, provider.ChatOptions{
 		ContextWindow: 32768,
-		Think:         ThinkTrue,
 		Tools: []agenttool.FunctionTool{{
 			Type: "function",
 			Function: agenttool.FunctionDefinition{
@@ -145,7 +145,7 @@ func TestChatPreservesToolCallsAndToolMessages(t *testing.T) {
 			}},
 		},
 		message.NewToolResult("search_text", `{"matches":[]}`),
-	}, ChatOptions{})
+	}, provider.ChatOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestChatDefaultsThinkToFalse(t *testing.T) {
 	client := NewClient(server.URL)
 	if _, err := client.Chat(context.Background(), "gemma", []message.Message{
 		message.NewUserText("hello"),
-	}, ChatOptions{}); err != nil {
+	}, provider.ChatOptions{}); err != nil {
 		t.Fatal(err)
 	}
 

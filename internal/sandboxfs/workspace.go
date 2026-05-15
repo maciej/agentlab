@@ -384,7 +384,12 @@ func (w *Workspace) Grep(ctx context.Context, req GrepRequest) (GrepResult, erro
 		if err := ctx.Err(); err != nil {
 			return GrepResult{}, err
 		}
-		fileMatches, bytesMatched, err := w.grepFile(filePath, matcher, limit-len(matches), w.maxOutputBytes-outputBytes)
+		fileMatches, bytesMatched, err := w.grepFile(
+			filePath,
+			matcher,
+			limit-len(matches),
+			w.maxOutputBytes-outputBytes,
+		)
 		outputBytes += bytesMatched
 		matches = append(matches, fileMatches...)
 		if err != nil {
@@ -405,7 +410,12 @@ func (w *Workspace) Grep(ctx context.Context, req GrepRequest) (GrepResult, erro
 	return GrepResult{Matches: matches, Truncated: truncated}, nil
 }
 
-func (w *Workspace) grepFile(filePath string, matcher textMatcher, remaining int, remainingBytes int64) ([]Match, int64, error) {
+func (w *Workspace) grepFile(
+	filePath string,
+	matcher textMatcher,
+	remaining int,
+	remainingBytes int64,
+) ([]Match, int64, error) {
 	if remaining <= 0 || remainingBytes <= 0 {
 		return nil, 0, ErrTooLarge
 	}
