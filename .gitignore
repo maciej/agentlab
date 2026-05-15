@@ -1,0 +1,7 @@
+# Local cross-repository links and agent notes.
+local-pi-mono
+.agentlab.local/
+local/
+
+# Local build artifact from `go build ./cmd/agentlab`.
+/agentlab
