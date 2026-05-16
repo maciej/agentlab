@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	appDirName     = "agentslab"
+	appDirName     = "agentlab"
 	configFileName = "config.yaml"
 	envConfigPath  = "AGENTLAB_CONFIG"
 )

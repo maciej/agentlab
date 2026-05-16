@@ -40,7 +40,7 @@ The Pi target copies only `testdata/smoke-sandbox` into a temporary container wo
 `read`, `grep`, and `ls` tools, and writes Pi's Ollama config to a temporary directory. It does not commit your
 Ollama endpoint/model. Set `PI_OLLAMA_BASE_URL` and `PI_OLLAMA_MODEL` to override them; otherwise the script
 reads the configured Ollama provider `settings.endpoint` and `settings.model` from `AGENTLAB_CONFIG` or
-`~/.config/agentslab/config.yaml`. Set
+`~/.config/agentlab/config.yaml`. Set
 `PI_OLLAMA_PREFLIGHT_TIMEOUT` to override the default `15s` model-list timeout, `PI_OLLAMA_PREFLIGHT_CHAT_TIMEOUT` to
 override the default `45s` warmup chat timeout, and `PI_SMOKE_TIMEOUT` to override the default `180s` Pi prompt timeout.
 Set `PI_OLLAMA_PREFLIGHT_CHAT_TIMEOUT=0` to skip the warmup chat, or `PI_SMOKE_SKIP_PREFLIGHT=1` to skip all Ollama
@@ -52,7 +52,7 @@ The CLI is built with Cobra and accepts `--config` for an explicit YAML config f
 go run ./cmd/agentlab --config ./config.yaml
 ```
 
-Configuration is loaded from `~/.config/agentslab/config.yaml` on macOS by default. On other platforms it uses the
+Configuration is loaded from `~/.config/agentlab/config.yaml` on macOS by default. On other platforms it uses the
 standard user config directory. Set `AGENTLAB_CONFIG` to point at a different config file.
 
 ```yaml

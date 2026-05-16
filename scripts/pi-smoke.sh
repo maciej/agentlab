@@ -13,7 +13,7 @@ preflight_chat_timeout="${PI_OLLAMA_PREFLIGHT_CHAT_TIMEOUT:-45}"
 preflight_timeout_seconds="${preflight_timeout%s}"
 preflight_chat_timeout_seconds="${preflight_chat_timeout%s}"
 
-config_path="${AGENTLAB_CONFIG:-$HOME/.config/agentslab/config.yaml}"
+config_path="${AGENTLAB_CONFIG:-$HOME/.config/agentlab/config.yaml}"
 
 log() {
 	printf '[%s] %s\n' "$(date -u '+%H:%M:%SZ')" "$*"
